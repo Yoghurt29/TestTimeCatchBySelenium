@@ -7,6 +7,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.lang.reflect.Field;
+import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -101,6 +102,10 @@ public class ExcelUtil {
 	 * 最大读取Excel文件列数100
 	 */
 	public static int MAX_FIELDS_COUNT=100;
+	/**
+	 * 默认DateFormat，用于解析excel中的字符串单元格的中的日期。注意是字符串单元格，日期单元格已自动识别。
+	 */
+	public static DateFormat dateFormat=new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 	/**
 	 * MuiltPartFileToDisk默认存储位置
 	 * WEB容器下的指定临时目录req.getServletContext().getRealPath("/")+TEMP_EXCEL_FOLDER
@@ -300,6 +305,7 @@ public class ExcelUtil {
 	 * @throws Exception "暂不支持单元格为空白，布尔，错误，数字，字符，公式以外的类型"
 	 */
 	public static List<Map<String,Object>> readListFromExcel(File file,Function<CoverterContext, Object> fieldConverter,String[] fields) throws Exception{
+		SimpleDateFormat sdf=new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ");
 		Workbook wb = null;
 		FormulaEvaluator eval=null;//公式計算器對象
 			if (file.getName().endsWith(".xls")) {
@@ -337,11 +343,18 @@ public class ExcelUtil {
 						switch (cell.getCellType()) {
 						case Cell.CELL_TYPE_STRING:
 							cellValue=row.getCell(iColumn).getStringCellValue();
+							//注意日期类型包含在数字类型中，此处是对字符串类型单元格处理
+							if (cellValue.contains("-")) {
+								try {
+									cellValue=sdf.format(dateFormat.parse(cellValue));
+								} catch (Exception e) {
+									//System.out.println("单元格值包含'-',但未能解析为日期！按原始字符格式保存");
+								}
+							}
 							break;
 						case Cell.CELL_TYPE_NUMERIC:
 							//注意日期类型包含在数字类型中，额外判断
 							if (HSSFDateUtil.isCellDateFormatted(row.getCell(iColumn))) {
-								SimpleDateFormat sdf=new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ");
 								cellValue=sdf.format(row.getCell(iColumn).getDateCellValue());
 								//System.out.println(cellValue);
 								break;
